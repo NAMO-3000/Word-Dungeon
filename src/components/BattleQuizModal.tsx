@@ -51,6 +51,9 @@ export const BattleQuizModal: React.FC<BattleQuizModalProps> = ({
     const correct = idx === question.correctIndex;
     setIsCorrect(correct);
 
+    // Requirement 2.2: Automatically speak target word on answer submission
+    speakWord(word.word);
+
     if (correct) {
       soundManager.playCorrect();
       setMonsterHurt(true);
@@ -100,7 +103,7 @@ export const BattleQuizModal: React.FC<BattleQuizModalProps> = ({
                 )}
               </h3>
               <p className="text-[11px] text-slate-400">
-                중1 필수 단어 결투 • {word.themeName}
+                중1 영단어 결투 • {word.themeName}
               </p>
             </div>
           </div>
@@ -112,7 +115,7 @@ export const BattleQuizModal: React.FC<BattleQuizModalProps> = ({
           </div>
         </div>
 
-        {/* Monster Stage Area */}
+        {/* Monster Stage Area (Requirement 2.1: Target word badge removed) */}
         <div className="relative py-4 flex flex-col items-center justify-center">
           <motion.div
             animate={
@@ -129,25 +132,6 @@ export const BattleQuizModal: React.FC<BattleQuizModalProps> = ({
           >
             {node.monsterEmoji || '👾'}
           </motion.div>
-
-          {/* Target Word badge with speech button */}
-          <div className="mt-3 flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-3.5 py-1.5 rounded-full shadow-inner">
-            <span className="text-xs font-bold text-amber-300 font-pixel tracking-wider">
-              {word.word}
-            </span>
-            <span className="text-[11px] text-slate-400 font-mono">
-              {word.pronunciation}
-            </span>
-            <button
-              id="listen-word-btn"
-              onClick={handleSpeak}
-              className="p-1 rounded-full hover:bg-slate-700 text-amber-400 active:scale-95 transition-all"
-              title="원어민 발음 듣기"
-              aria-label="원어민 발음 듣기"
-            >
-              <Volume2 className={`w-3.5 h-3.5 ${isSpeaking ? 'animate-bounce text-emerald-400' : ''}`} />
-            </button>
-          </div>
         </div>
 
         {/* Question Prompt */}

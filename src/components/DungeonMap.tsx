@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Check, Lock, Swords, Skull, Flame, Gift, Crown } from 'lucide-react';
 import { MapNode } from '../types';
@@ -8,6 +8,7 @@ interface DungeonMapProps {
   nodes: MapNode[];
   currentFloor: number;
   currentNodeId: string | null;
+  visitedPath: string[]; // Requirement 2.3: 선택하여 클리어한 노드 경로
   onSelectNode: (node: MapNode) => void;
 }
 
@@ -15,9 +16,12 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
   nodes,
   currentFloor,
   currentNodeId,
+  visitedPath,
   onSelectNode,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [nodeCoords, setNodeCoords] = useState<Record<string, { x: number; y: number }>>({});
 
   // Group nodes by floor (1 to 10)
   const floorMap = new Map<number, MapNode[]>();
@@ -29,6 +33,36 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
     list.push(node);
     floorMap.set(node.floor, list);
   });
+
+  // Calculate coordinates of all node buttons to draw lines
+  const updateCoords = useCallback(() => {
+    if (!contentRef.current) return;
+    const containerRect = contentRef.current.getBoundingClientRect();
+    const coords: Record<string, { x: number; y: number }> = {};
+
+    nodes.forEach((node) => {
+      const el = document.getElementById(`node-btn-${node.id}`);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        coords[node.id] = {
+          x: rect.left + rect.width / 2 - containerRect.left,
+          y: rect.top + rect.height / 2 - containerRect.top,
+        };
+      }
+    });
+
+    setNodeCoords(coords);
+  }, [nodes]);
+
+  useEffect(() => {
+    updateCoords();
+    const timeout = setTimeout(updateCoords, 80);
+    window.addEventListener('resize', updateCoords);
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('resize', updateCoords);
+    };
+  }, [updateCoords, currentFloor, visitedPath]);
 
   // Auto-scroll to current active floor
   useEffect(() => {
@@ -59,7 +93,7 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
       case 'boss':
         return '최종 보스';
       case 'elite':
-        return '엘리트 퀴즈';
+        return '엘리트';
       case 'treasure':
         return '보물 상자';
       case 'rest':
@@ -70,12 +104,14 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
     }
   };
 
-  // SVG Connections calculation helper
-  // Floors are rendered 1 -> 10 from bottom to top or top to bottom.
-  // Let's render Floor 1 at bottom and Floor 10 at top (classic Slay the Spire tower climbing),
-  // OR Floor 1 at top and Floor 10 at bottom (descending into dungeon).
-  // Ascending 1 -> 10 (floor 1 at bottom, boss at top) is the classic roguelike feel!
+  // Helper to build smooth curved line between two coordinates
+  const createCurvedPath = (posA: { x: number; y: number }, posB: { x: number; y: number }) => {
+    const midY = (posA.y + posB.y) / 2;
+    return `M ${posA.x} ${posA.y} C ${posA.x} ${midY}, ${posB.x} ${midY}, ${posB.x} ${posB.y}`;
+  };
+
   const floorsAscending = Array.from({ length: 10 }, (_, i) => i + 1);
+  const lastVisitedId = visitedPath.length > 0 ? visitedPath[visitedPath.length - 1] : null;
 
   return (
     <div
@@ -85,8 +121,122 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
       {/* Background Grid & Atmospheric Fog */}
       <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-40 pointer-events-none" />
 
-      <div className="w-full max-w-md relative flex flex-col gap-9 pb-12">
-        {/* Render Floors 10 down to 1 so Floor 10 (Boss) is at the top and Floor 1 is at the bottom */}
+      <div
+        ref={contentRef}
+        className="w-full max-w-md relative flex flex-col gap-10 pb-16"
+      >
+        {/* SVG Connection Layer (Requirement 2.3: 선택한 것을 선으로 잇기) */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <linearGradient id="visitedGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stopColor="#10b981" />
+              <stop offset="100%" stopColor="#34d399" />
+            </linearGradient>
+          </defs>
+
+          {/* 1. Base Graph Connections (Subtle gray dashed lines) */}
+          {nodes.map((node) => {
+            const posA = nodeCoords[node.id];
+            if (!posA) return null;
+
+            return node.nextConnectedIds.map((targetId) => {
+              const posB = nodeCoords[targetId];
+              if (!posB) return null;
+              const pathD = createCurvedPath(posA, posB);
+
+              return (
+                <path
+                  key={`base-conn-${node.id}-${targetId}`}
+                  d={pathD}
+                  stroke="#334155"
+                  strokeWidth="2"
+                  strokeDasharray="4 4"
+                  fill="none"
+                  opacity="0.45"
+                />
+              );
+            });
+          })}
+
+          {/* 2. Active Branch from last visited node to next available nodes */}
+          {lastVisitedId &&
+            nodes
+              .filter((n) => n.isAvailable && !n.visited)
+              .map((targetNode) => {
+                const posA = nodeCoords[lastVisitedId];
+                const posB = nodeCoords[targetNode.id];
+                if (!posA || !posB) return null;
+                const pathD = createCurvedPath(posA, posB);
+
+                return (
+                  <path
+                    key={`active-avail-${lastVisitedId}-${targetNode.id}`}
+                    d={pathD}
+                    stroke="#f59e0b"
+                    strokeWidth="3"
+                    strokeDasharray="6 4"
+                    fill="none"
+                    opacity="0.85"
+                    className="animate-pulse"
+                  />
+                );
+              })}
+
+          {/* 3. Visited Path (선택한 노드들을 선으로 연결 - Requirement 2.3) */}
+          {visitedPath.map((fromId, idx) => {
+            if (idx >= visitedPath.length - 1) return null;
+            const toId = visitedPath[idx + 1];
+            const posA = nodeCoords[fromId];
+            const posB = nodeCoords[toId];
+            if (!posA || !posB) return null;
+            const pathD = createCurvedPath(posA, posB);
+
+            return (
+              <g key={`visited-line-${fromId}-${toId}`}>
+                {/* Glowing Outer Line */}
+                <path
+                  d={pathD}
+                  stroke="#10b981"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity="0.5"
+                  filter="url(#glow-emerald)"
+                />
+                {/* Core Vibrant Line */}
+                <path
+                  d={pathD}
+                  stroke="url(#visitedGradient)"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                {/* Animated Inner Dash */}
+                <path
+                  d={pathD}
+                  stroke="#ffffff"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 8"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity="0.75"
+                />
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Render Floors 10 down to 1 so Floor 10 (Boss) is at top and Floor 1 is at bottom */}
         {floorsAscending
           .slice()
           .reverse()
@@ -98,7 +248,7 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
               <div
                 key={`floor-${floor}`}
                 id={`floor-row-${floor}`}
-                className={`relative flex flex-col items-center transition-all ${
+                className={`relative flex flex-col items-center transition-all z-10 ${
                   isCurrentFloor ? 'opacity-100' : 'opacity-85'
                 }`}
               >
@@ -122,7 +272,7 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
                   {floorNodes.map((node) => {
                     const isAvailable = node.isAvailable && !node.visited;
                     const isVisited = node.visited;
-                    const isCurrent = currentNodeId === node.id;
+                    const isSelectedInPath = visitedPath.includes(node.id);
 
                     return (
                       <div key={node.id} className="relative flex flex-col items-center">
@@ -138,8 +288,8 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
                           whileHover={isAvailable ? { scale: 1.08 } : {}}
                           whileTap={isAvailable ? { scale: 0.95 } : {}}
                           className={`relative z-10 w-16 h-16 sm:w-18 sm:h-18 rounded-2xl flex flex-col items-center justify-center gap-0.5 border-2 transition-all shadow-lg ${
-                            isVisited
-                              ? 'bg-emerald-950/50 border-emerald-500/60 text-emerald-300'
+                            isSelectedInPath || isVisited
+                              ? 'bg-emerald-950/70 border-emerald-400 text-emerald-300 shadow-emerald-950/60 ring-2 ring-emerald-500/40'
                               : isAvailable
                               ? 'bg-linear-to-b from-amber-500/20 via-slate-900 to-slate-900 border-amber-400 text-amber-300 shadow-amber-500/30 cursor-pointer ring-4 ring-amber-400/30 animate-pulse'
                               : 'bg-slate-900/60 border-slate-800 text-slate-600 opacity-60 cursor-not-allowed'
@@ -147,7 +297,7 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
                         >
                           {/* Inner Icon */}
                           <div className="flex items-center justify-center">
-                            {isVisited ? (
+                            {isSelectedInPath || isVisited ? (
                               <Check className="w-6 h-6 text-emerald-400 stroke-[3]" />
                             ) : isAvailable ? (
                               getNodeIcon(node.type, node.monsterEmoji)
@@ -159,14 +309,14 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
                           {/* Node Type Subtitle */}
                           <span
                             className={`text-[9px] font-bold tracking-tight text-center truncate max-w-[54px] ${
-                              isVisited
+                              isSelectedInPath || isVisited
                                 ? 'text-emerald-400'
                                 : isAvailable
                                 ? 'text-amber-200'
                                 : 'text-slate-600'
                             }`}
                           >
-                            {isVisited ? '클리어' : getNodeLabel(node)}
+                            {isSelectedInPath || isVisited ? '클리어' : getNodeLabel(node)}
                           </span>
 
                           {/* Pulsing indicator if ready to choose */}
@@ -183,8 +333,8 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
                           className={`mt-1.5 text-[11px] font-medium text-center truncate max-w-[80px] ${
                             isAvailable
                               ? 'text-amber-300 font-bold'
-                              : isVisited
-                              ? 'text-slate-400 line-through'
+                              : isSelectedInPath || isVisited
+                              ? 'text-emerald-400/90 font-medium'
                               : 'text-slate-600'
                           }`}
                         >
@@ -194,13 +344,6 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
                     );
                   })}
                 </div>
-
-                {/* Downward connecting branch arrows indicating path flow */}
-                {floor > 1 && (
-                  <div className="w-full flex justify-center my-1 pointer-events-none opacity-40">
-                    <div className="h-4 w-0.5 bg-linear-to-b from-slate-600 to-slate-800" />
-                  </div>
-                )}
               </div>
             );
           })}

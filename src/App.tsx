@@ -96,6 +96,7 @@ export default function App() {
   const [activeNode, setActiveNode] = useState<MapNode | null>(null);
   const [runLearnedWords, setRunLearnedWords] = useState<WordItem[]>([]);
   const [runGoldEarned, setRunGoldEarned] = useState<number>(0);
+  const [visitedPath, setVisitedPath] = useState<string[]>([]);
 
   // Modals overlay
   const [isNotebookOpen, setIsNotebookOpen] = useState<boolean>(false);
@@ -199,6 +200,7 @@ export default function App() {
     setActiveNode(null);
     setRunLearnedWords([]);
     setRunGoldEarned(0);
+    setVisitedPath([]);
 
     // Avatar perk: Knight starts with +1 Max HP (4 HP instead of 3)
     const baseHp = stats.equippedAvatarId === 'knight' ? 4 : 3;
@@ -295,6 +297,9 @@ export default function App() {
 
   // Move forward through the dungeon tree
   const advanceDungeonNode = (clearedNode: MapNode) => {
+    // Add to chosen path (Requirement 2.3: 선택한 것을 선으로 잇기)
+    setVisitedPath((prev) => (prev.includes(clearedNode.id) ? prev : [...prev, clearedNode.id]));
+
     // Check if this was the Floor 10 Boss!
     if (clearedNode.floor === 10) {
       // Dungeon Cleared!
@@ -505,6 +510,7 @@ export default function App() {
               nodes={dungeonNodes}
               currentFloor={stats.currentFloor}
               currentNodeId={stats.currentNodeId}
+              visitedPath={visitedPath}
               onSelectNode={handleSelectNode}
             />
           </div>

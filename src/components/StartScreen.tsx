@@ -99,7 +99,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           className="mb-3"
         >
           <div className="inline-block px-3 py-1 mb-1.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-bold tracking-wider">
-            중학교 1학년 영단어 & 기초 문법 로그라이크 RPG
+            로그라이크 RPG
           </div>
           <h1 className="text-3xl sm:text-4xl font-black font-game tracking-tight text-transparent bg-clip-text bg-linear-to-r from-amber-200 via-amber-400 to-orange-400 drop-shadow-lg">
             워드 던전
@@ -175,12 +175,12 @@ export const StartScreen: React.FC<StartScreenProps> = ({
             </div>
             <div className="flex items-center text-xs text-slate-400 gap-1 bg-slate-800/60 px-2 py-1 rounded-lg border border-slate-700/50 shrink-0">
               <Compass className="w-3.5 h-3.5 text-amber-400" />
-              <span>테마 (10개)</span>
+              <span>테마</span>
             </div>
           </button>
         </div>
 
-        {/* Easy vs Hard Difficulty Selector (Requirements 5, 6, 7) */}
+        {/* Easy vs Hard Difficulty Selector (Requirements 1.2, 1.3) */}
         <div className="w-full max-w-xs mb-5">
           <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-2xl border border-slate-800">
             {/* Easy Mode */}
@@ -189,19 +189,16 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                 soundManager.playClick();
                 onSelectDifficulty('easy');
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                 difficulty === 'easy'
                   ? 'bg-emerald-600 text-white shadow-md border border-emerald-400'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <div className="flex items-center gap-1">
-                <span>EASY 모드</span>
-                {stats.clearedThemes?.[selectedTheme.id]?.easy && (
-                  <Check className="w-3 h-3 text-emerald-300 stroke-[3]" />
-                )}
-              </div>
-              <span className="text-[10px] font-normal opacity-90">단어 뜻 위주</span>
+              <span>EASY 모드</span>
+              {stats.clearedThemes?.[selectedTheme.id]?.easy && (
+                <Check className="w-3.5 h-3.5 text-emerald-300 stroke-[3]" />
+              )}
             </button>
 
             {/* Hard Mode (Locked until Easy is cleared) */}
@@ -215,24 +212,20 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                 }
               }}
               disabled={!isHardUnlocked}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 relative ${
+              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 relative ${
                 !isHardUnlocked
                   ? 'text-slate-600 bg-slate-900/50 cursor-not-allowed border border-slate-800/40'
                   : difficulty === 'hard'
                   ? 'bg-purple-600 text-white shadow-md border border-purple-400'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
+              title={!isHardUnlocked ? 'Easy 모드 클리어 시 해금' : undefined}
             >
-              <div className="flex items-center gap-1">
-                {!isHardUnlocked && <Lock className="w-3 h-3 text-slate-500" />}
-                <span>HARD 모드</span>
-                {stats.clearedThemes?.[selectedTheme.id]?.hard && (
-                  <Check className="w-3 h-3 text-purple-300 stroke-[3]" />
-                )}
-              </div>
-              <span className="text-[10px] font-normal opacity-90">
-                {!isHardUnlocked ? 'Easy 클리어 시 해금' : '문법 위주'}
-              </span>
+              {!isHardUnlocked && <Lock className="w-3.5 h-3.5 text-slate-500" />}
+              <span>HARD 모드</span>
+              {stats.clearedThemes?.[selectedTheme.id]?.hard && (
+                <Check className="w-3.5 h-3.5 text-purple-300 stroke-[3]" />
+              )}
             </button>
           </div>
         </div>
