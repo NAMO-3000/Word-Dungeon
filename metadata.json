@@ -1,0 +1,6 @@
+{
+  "name": "워드 던전",
+  "description": "중학교 1학년을 위한 로그라이크 단어 던전 모바일 학습 게임",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
