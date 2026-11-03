@@ -4,6 +4,11 @@ import { Volume2, CheckCircle2, XCircle, Sparkles, Heart, HelpCircle, ArrowRight
 import { MapNode, QuizQuestion, WordItem } from '../types';
 import { soundManager } from '../utils/audio';
 import { speakWord } from '../utils/speech';
+import {
+  recordSentenceTap,
+  getSentenceTapCount,
+  getSentenceTapStats,
+} from '../utils/sentenceTapTracker';
 
 interface BattleQuizModalProps {
   node: MapNode;
@@ -29,12 +34,24 @@ export const BattleQuizModal: React.FC<BattleQuizModalProps> = ({
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [monsterHurt, setMonsterHurt] = useState<boolean>(false);
   const [playerHurt, setPlayerHurt] = useState<boolean>(false);
+  const [sentenceTapFeedback, setSentenceTapFeedback] = useState<string | null>(null);
 
   if (!question) {
     return null;
   }
 
   const word = question.wordItem;
+
+  const handleSentenceTap = async (sentence: string, translation?: string) => {
+    soundManager.playClick();
+    speakWord(sentence);
+    const result = await recordSentenceTap(sentence, {
+      translation: translation || '',
+      word: word.word,
+    });
+    setSentenceTapFeedback(`👆 탭 ${result.record.tapCount}회 (평균 ${result.stats.averageTaps}회) • 시트 저장 완료`);
+    setTimeout(() => setSentenceTapFeedback(null), 2500);
+  };
 
   const handleSpeak = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -228,12 +245,33 @@ export const BattleQuizModal: React.FC<BattleQuizModalProps> = ({
                   <span className="text-slate-400 text-[11px]">[{word.partOfSpeech}]</span>
                   <span className="text-emerald-300 font-bold">{word.meaning}</span>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  📖 예문: {word.example}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  🇰🇷 해석: {word.exampleKo}
-                </p>
+                <div
+                  onClick={() => handleSentenceTap(word.example, word.exampleKo)}
+                  className="cursor-pointer bg-slate-950/70 hover:bg-slate-950 p-2 rounded-lg border border-slate-700/60 hover:border-teal-500/50 transition-all group"
+                  title="문장 발음 듣기 및 탭 빈도 구글 시트 저장"
+                >
+                  <div className="flex items-center justify-between text-[10px] text-teal-400 font-bold mb-1">
+                    <span className="flex items-center gap-1">
+                      <Volume2 className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                      예문 (탭하여 듣기)
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-mono">
+                      👆 {getSentenceTapCount(word.example)}회 탭됨
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-200 leading-relaxed font-medium">
+                    {word.example}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {word.exampleKo}
+                  </p>
+                </div>
+
+                {sentenceTapFeedback && (
+                  <div className="text-[10px] font-bold text-teal-300 bg-teal-950/80 border border-teal-500/40 rounded-lg py-1 px-2 text-center animate-fade-in">
+                    {sentenceTapFeedback}
+                  </div>
+                )}
                 {word.grammarTip && (
                   <p className="text-[10px] text-sky-300 pt-1 border-t border-slate-800">
                     💡 문법 팁: {word.grammarTip}

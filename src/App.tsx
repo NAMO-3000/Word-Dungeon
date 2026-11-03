@@ -18,6 +18,8 @@ import { EventModal } from './components/EventModal';
 import { ResultScreen } from './components/ResultScreen';
 import { NotebookModal } from './components/NotebookModal';
 import { AchievementModal } from './components/AchievementModal';
+import { GoogleSheetModal } from './components/GoogleSheetModal';
+import { syncStatsToGoogleSheet, isAutoSyncEnabled } from './utils/googleSheetsSync';
 
 const STATS_STORAGE_KEY = 'word_dungeon_player_stats_v2';
 
@@ -101,6 +103,7 @@ export default function App() {
   // Modals overlay
   const [isNotebookOpen, setIsNotebookOpen] = useState<boolean>(false);
   const [isAchievementOpen, setIsAchievementOpen] = useState<boolean>(false);
+  const [isGoogleSheetOpen, setIsGoogleSheetOpen] = useState<boolean>(false);
 
   // Sync stats to localStorage
   useEffect(() => {
@@ -272,6 +275,11 @@ export default function App() {
       };
 
       if (newHp <= 0) {
+        // Auto-sync stats to Google Sheet on Game Over
+        if (isAutoSyncEnabled()) {
+          syncStatsToGoogleSheet(updated).catch(() => {});
+        }
+
         // Game Over
         setTimeout(() => {
           setActiveNode(null);
@@ -356,6 +364,12 @@ export default function App() {
         };
 
         checkAchievements(updated, 'clear');
+
+        // Auto-sync stats to Google Sheet on Dungeon Clear
+        if (isAutoSyncEnabled()) {
+          syncStatsToGoogleSheet(updated).catch(() => {});
+        }
+
         return updated;
       });
 
@@ -490,6 +504,7 @@ export default function App() {
             onStartGame={() => handleStartGame(selectedTheme, difficulty)}
             onOpenNotebook={() => setIsNotebookOpen(true)}
             onOpenAchievements={() => setIsAchievementOpen(true)}
+            onOpenGoogleSheet={() => setIsGoogleSheetOpen(true)}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
           />
@@ -531,6 +546,7 @@ export default function App() {
                 : () => handleStartGame(selectedTheme, difficulty)
             }
             onExit={handleExitToStart}
+            onOpenGoogleSheet={() => setIsGoogleSheetOpen(true)}
           />
         )}
 
@@ -579,6 +595,13 @@ export default function App() {
             onClose={() => setIsAchievementOpen(false)}
           />
         )}
+
+        {/* Google Sheet Sync Modal */}
+        <GoogleSheetModal
+          isOpen={isGoogleSheetOpen}
+          onClose={() => setIsGoogleSheetOpen(false)}
+          stats={stats}
+        />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { BookOpen, Trophy, Volume2, VolumeX, Sparkles, Swords, Compass, Lock, Zap, Check, ChevronRight } from 'lucide-react';
+import { BookOpen, Trophy, Volume2, VolumeX, Sparkles, Swords, Compass, Lock, Zap, Check, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import { DungeonTheme, GameDifficulty, PlayerStats, AvatarId } from '../types';
 import { DUNGEON_THEMES } from '../data/dungeonThemes';
 import { INITIAL_AVATARS } from '../data/avatars';
@@ -18,6 +18,7 @@ interface StartScreenProps {
   onStartGame: () => void;
   onOpenNotebook: () => void;
   onOpenAchievements: () => void;
+  onOpenGoogleSheet: () => void;
   isMuted: boolean;
   onToggleMute: () => void;
 }
@@ -33,6 +34,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   onStartGame,
   onOpenNotebook,
   onOpenAchievements,
+  onOpenGoogleSheet,
   isMuted,
   onToggleMute,
 }) => {
@@ -78,15 +80,30 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           <span>클리어: <strong className="text-emerald-400">{stats.totalCleared}</strong>회</span>
         </div>
 
-        <button
-          id="sound-toggle-btn"
-          onClick={onToggleMute}
-          className="p-2.5 rounded-full bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-slate-300 transition-all border border-slate-700/60 shadow-md"
-          title={isMuted ? '소리 켜기' : '소리 끄기'}
-          aria-label="소리 설정"
-        >
-          {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            id="google-sheet-btn"
+            onClick={() => {
+              soundManager.playClick();
+              onOpenGoogleSheet();
+            }}
+            className="p-2.5 rounded-full bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-emerald-400 transition-all border border-slate-700/60 shadow-md flex items-center justify-center"
+            title="구글 시트 연동 기록"
+            aria-label="구글 시트 연동 기록"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+          </button>
+
+          <button
+            id="sound-toggle-btn"
+            onClick={onToggleMute}
+            className="p-2.5 rounded-full bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-slate-300 transition-all border border-slate-700/60 shadow-md"
+            title={isMuted ? '소리 켜기' : '소리 끄기'}
+            aria-label="소리 설정"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+          </button>
+        </div>
       </div>
 
       {/* Center Section: Logo, Avatar, Theme & Start Button */}

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Trophy, Heart, Play, Home, Sparkles, Volume2, Skull, RotateCcw } from 'lucide-react';
+import { Trophy, Heart, Play, Home, Sparkles, Volume2, Skull, RotateCcw, FileSpreadsheet } from 'lucide-react';
 import { DungeonTheme, WordItem } from '../types';
 import { soundManager } from '../utils/audio';
 import { speakWord } from '../utils/speech';
@@ -14,6 +14,7 @@ interface ResultScreenProps {
   goldEarned: number;
   onContinue: () => void;
   onExit: () => void;
+  onOpenGoogleSheet?: () => void;
 }
 
 export const ResultScreen: React.FC<ResultScreenProps> = ({
@@ -25,6 +26,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   goldEarned,
   onContinue,
   onExit,
+  onOpenGoogleSheet,
 }) => {
   useEffect(() => {
     if (isClear) {
@@ -160,6 +162,25 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             )}
           </div>
         </div>
+
+        {/* Google Sheet Sync Banner */}
+        {onOpenGoogleSheet && (
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              onOpenGoogleSheet();
+            }}
+            className="w-full mt-1 mb-2 py-2 px-3 rounded-xl bg-emerald-950/50 hover:bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between transition-all group"
+          >
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span className="font-medium">구글 시트 연동 기록 확인 및 동기화</span>
+            </div>
+            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-900/60 px-2 py-0.5 rounded-full border border-emerald-600/50">
+              열기 ➔
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Bottom Buttons - STRICT SPEC COMPLIANCE:

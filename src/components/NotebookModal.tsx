@@ -5,6 +5,12 @@ import { WordItem, DungeonTheme } from '../types';
 import { DUNGEON_THEMES } from '../data/dungeonThemes';
 import { speakWord } from '../utils/speech';
 import { soundManager } from '../utils/audio';
+import {
+  getSentenceTapStats,
+  recordSentenceTap,
+  subscribeSentenceTaps,
+  SentenceTapStats,
+} from '../utils/sentenceTapTracker';
 
 interface NotebookModalProps {
   discoveredWordIds: string[];
@@ -24,6 +30,25 @@ export const NotebookModal: React.FC<NotebookModalProps> = ({
   const [selectedThemeId, setSelectedThemeId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'wrong' | 'mastered'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [tapStats, setTapStats] = useState<SentenceTapStats>(() => getSentenceTapStats());
+  const [justTappedSentence, setJustTappedSentence] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    return subscribeSentenceTaps((newStats) => {
+      setTapStats(newStats);
+    });
+  }, []);
+
+  const handleSentenceTap = async (sentence: string, translation: string, word: string) => {
+    soundManager.playClick();
+    speakWord(sentence);
+    setJustTappedSentence(sentence);
+    setTimeout(() => {
+      setJustTappedSentence(null);
+    }, 1800);
+
+    await recordSentenceTap(sentence, { translation, word });
+  };
 
   // Collect all unique words across all 10 themes (300 words total)
   const allWords = useMemo(() => {
@@ -110,6 +135,14 @@ export const NotebookModal: React.FC<NotebookModalProps> = ({
               <span>오답 ({wrongCount})</span>
             </button>
           )}
+
+          <div className="hidden sm:flex items-center gap-1.5 bg-teal-950/70 border border-teal-500/40 px-2.5 py-1 rounded-full text-xs font-semibold text-teal-300" title="구글 시트 연동 문장 탭 분석">
+            <span>👆 문장 탭:</span>
+            <span className="text-teal-200 font-bold">{tapStats.totalTaps}회</span>
+            <span className="text-teal-600">|</span>
+            <span>평균</span>
+            <span className="text-emerald-300 font-bold">{tapStats.averageTaps}회</span>
+          </div>
 
           <div className="flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-300 border border-slate-700">
             <span>발견:</span>
@@ -307,15 +340,61 @@ export const NotebookModal: React.FC<NotebookModalProps> = ({
                   </span>
                 </div>
 
-                {/* Example Sentence */}
-                <div className="bg-slate-950/60 rounded-xl p-2.5 border border-slate-800/80 text-xs space-y-1">
-                  <p className="text-slate-200 font-medium leading-relaxed">
-                    {item.example}
-                  </p>
-                  <p className="text-slate-400 text-[11px] leading-relaxed">
-                    {item.exampleKo}
-                  </p>
-                </div>
+                {/* Example Sentence (Interactive: Tap tracks tap frequency and average to Google Sheets) */}
+                {(() => {
+                  const sTapCount = tapStats.records[item.example]?.tapCount || 0;
+                  const isJustTapped = justTappedSentence === item.example;
+
+                  return (
+                    <div
+                      onClick={() => handleSentenceTap(item.example, item.exampleKo, item.word)}
+                      className={`cursor-pointer rounded-xl p-3 border transition-all relative group select-text active:scale-[0.99] ${
+                        isJustTapped
+                          ? 'bg-teal-950/70 border-teal-400 ring-2 ring-teal-500/30 shadow-lg shadow-teal-950/60'
+                          : 'bg-slate-950/70 border-slate-800/90 hover:border-teal-500/50 hover:bg-slate-900/80'
+                      }`}
+                      title="클릭하여 문장 발음 듣기 및 탭 빈도 구글 시트 저장"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-1.5 text-[10px] text-teal-400 font-bold">
+                          <Volume2 className="w-3.5 h-3.5 group-hover:scale-110 transition-transform text-teal-300" />
+                          <span>예문 (탭하여 듣기)</span>
+                        </div>
+
+                        {/* Tap frequency and average badge */}
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold flex items-center gap-1 border transition-all ${
+                              sTapCount > 0
+                                ? 'bg-teal-900/60 text-teal-200 border-teal-500/40'
+                                : 'bg-slate-800 text-slate-400 border-slate-700'
+                            }`}
+                          >
+                            <span>👆 {sTapCount}회 탭</span>
+                            {tapStats.totalSentences > 0 && (
+                              <span className="text-slate-400 text-[9px]">
+                                (평균 {tapStats.averageTaps}회)
+                              </span>
+                            )}
+                          </span>
+
+                          {isJustTapped && (
+                            <span className="text-[10px] bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-md font-bold animate-pulse">
+                              시트 저장됨 ✓
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-slate-100 font-semibold text-xs leading-relaxed group-hover:text-white transition-colors">
+                        {item.example}
+                      </p>
+                      <p className="text-slate-400 text-[11px] leading-relaxed mt-1">
+                        {item.exampleKo}
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* Grammar Tip */}
                 {item.grammarTip && (
