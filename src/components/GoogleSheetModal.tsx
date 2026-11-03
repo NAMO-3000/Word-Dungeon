@@ -3,13 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
   FileSpreadsheet,
-  Copy,
   Check,
   Send,
-  ExternalLink,
-  Info,
   Clock,
-  Download,
   AlertCircle,
   CheckCircle2,
   RefreshCw,
@@ -19,9 +15,6 @@ import {
 } from 'lucide-react';
 import { PlayerStats } from '../types';
 import {
-  GOOGLE_APPS_SCRIPT_CODE,
-  getSavedGoogleSheetUrl,
-  setSavedGoogleSheetUrl,
   isAutoSyncEnabled,
   setAutoSyncEnabled,
   getSyncHistory,
@@ -50,10 +43,8 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
   onClose,
   stats,
 }) => {
-  const [activeTab, setActiveTab] = useState<'sync' | 'sentences' | 'script'>('sync');
-  const [webAppUrl, setWebAppUrl] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'sync' | 'sentences'>('sync');
   const [autoSync, setAutoSync] = useState<boolean>(true);
-  const [isCopied, setIsCopied] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isSentenceSyncing, setIsSentenceSyncing] = useState<boolean>(false);
   const [sentenceTapStats, setSentenceTapStats] = useState<SentenceTapStats>(() => getSentenceTapStats());
@@ -69,7 +60,6 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setWebAppUrl(getSavedGoogleSheetUrl());
       setAutoSync(isAutoSyncEnabled());
       setHistory(getSyncHistory());
       setSentenceTapStats(getSentenceTapStats());
@@ -88,15 +78,6 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
 
   const currentPayload = createSyncPayload(stats);
 
-  const handleSaveUrl = () => {
-    soundManager.playClick();
-    setSavedGoogleSheetUrl(webAppUrl);
-    setSyncStatus({
-      type: 'success',
-      message: '구글 시트 연동 URL이 저장되었습니다!',
-    });
-  };
-
   const handleToggleAutoSync = () => {
     soundManager.playClick();
     const nextVal = !autoSync;
@@ -104,40 +85,12 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
     setAutoSyncEnabled(nextVal);
   };
 
-  const handleCopyCode = async () => {
-    soundManager.playClick();
-    try {
-      await navigator.clipboard.writeText(GOOGLE_APPS_SCRIPT_CODE);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2500);
-    } catch {
-      const textArea = document.createElement('textarea');
-      textArea.value = GOOGLE_APPS_SCRIPT_CODE;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2500);
-    }
-  };
-
   const handleSyncStatsNow = async () => {
     soundManager.playClick();
-    if (!webAppUrl.trim()) {
-      setSyncStatus({
-        type: 'error',
-        message: '먼저 구글 Apps Script 배포 웹 앱 URL을 입력해주세요.',
-      });
-      return;
-    }
-
     setIsSyncing(true);
     setSyncStatus({ type: 'idle', message: '' });
 
-    setSavedGoogleSheetUrl(webAppUrl);
-
-    const result = await syncStatsToGoogleSheet(stats, webAppUrl);
+    const result = await syncStatsToGoogleSheet(stats);
     setIsSyncing(false);
 
     if (result.success) {
@@ -185,21 +138,6 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
     await recordSentenceTap(sentence, { translation, word });
   };
 
-  const handleDownloadScript = () => {
-    soundManager.playClick();
-    const blob = new Blob([GOOGLE_APPS_SCRIPT_CODE], {
-      type: 'text/javascript;charset=utf-8',
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'google_apps_script.js';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   const sentenceRecordsList = Object.values(sentenceTapStats.records).sort(
     (a, b) => b.tapCount - a.tapCount
   );
@@ -240,7 +178,7 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
             </button>
           </div>
 
-          {/* Navigation Tabs (3 Tabs) */}
+          {/* Navigation Tabs (2 Tabs: URL & Script removed per user request) */}
           <div className="flex border-b border-slate-800 bg-slate-900/60 p-1 shrink-0 gap-1">
             <button
               onClick={() => {
@@ -270,20 +208,6 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
               <BarChart2 className="w-3.5 h-3.5" />
               <span>문장별 탭 통계</span>
             </button>
-            <button
-              onClick={() => {
-                soundManager.playClick();
-                setActiveTab('script');
-              }}
-              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'script'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Copy className="w-3.5 h-3.5" />
-              <span>Apps Script 코드</span>
-            </button>
           </div>
 
           {/* Modal Body */}
@@ -291,42 +215,15 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
             {/* TAB 1: Play Stats */}
             {activeTab === 'sync' && (
               <>
-                {/* 1. Web App URL Input */}
-                <div className="space-y-2 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                      <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
-                      구글 Apps Script 웹 앱 URL
-                    </label>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                      ⚡ .env.local 연동 URL 활성화됨
-                    </span>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={webAppUrl}
-                      onChange={(e) => setWebAppUrl(e.target.value)}
-                      placeholder="https://script.google.com/macros/s/.../exec"
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-emerald-500 font-mono transition-colors"
-                    />
-                    <button
-                      onClick={handleSaveUrl}
-                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs font-bold text-slate-200 rounded-xl border border-slate-600 transition-all shrink-0 cursor-pointer"
-                    >
-                      저장
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Recorded Columns Preview Table */}
+                {/* 1. Recorded Columns Preview Table */}
                 <div className="bg-slate-950/80 rounded-2xl p-3.5 border border-slate-800">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5" /> 현재 플레이 데이터 미리보기 (6개 열)
                     </span>
-                    <span className="text-[10px] text-slate-400">실시간 연동</span>
+                    <span className="text-[10px] text-emerald-400/90 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      실시간 연동 활성화
+                    </span>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -367,7 +264,7 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
                   </div>
                 </div>
 
-                {/* 3. Auto-Sync Toggle */}
+                {/* 2. Auto-Sync Toggle */}
                 <div className="flex items-center justify-between bg-slate-950/60 p-3 rounded-2xl border border-slate-800">
                   <div className="flex items-center gap-2">
                     <RefreshCw className="w-4 h-4 text-emerald-400" />
@@ -392,7 +289,7 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
                   </button>
                 </div>
 
-                {/* 4. Action Button: Sync Now */}
+                {/* 3. Action Button: Sync Now */}
                 <button
                   id="sync-now-btn"
                   onClick={handleSyncStatsNow}
@@ -432,13 +329,13 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
                   </motion.div>
                 )}
 
-                {/* 5. Recent History */}
+                {/* 4. Recent History */}
                 {history.length > 0 && (
                   <div className="space-y-1.5 pt-1">
                     <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" /> 최근 전송 내역 ({history.length}건)
                     </div>
-                    <div className="space-y-1.5 max-h-28 overflow-y-auto no-scrollbar">
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">
                       {history.slice(0, 5).map((item) => (
                         <div
                           key={item.id}
@@ -583,97 +480,6 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
                   </div>
                 </div>
               </div>
-            )}
-
-            {/* TAB 3: Apps Script Code & Deployment Guide */}
-            {activeTab === 'script' && (
-              <>
-                <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-2xl p-3.5 text-xs text-slate-200 space-y-2">
-                  <div className="font-bold text-emerald-300 flex items-center gap-1.5 text-sm">
-                    <Info className="w-4 h-4" /> 구글 스프레드시트 3분 연동 방법
-                  </div>
-                  <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
-                    <li>
-                      <strong>구글 스프레드시트</strong>를 열거나 새로 만듭니다.
-                    </li>
-                    <li>
-                      상단 메뉴에서 <strong>[확장 프로그램] ➔ [Apps Script]</strong>를 클릭합니다.
-                    </li>
-                    <li>
-                      아래의 코드를 <strong>전체 복사</strong>하여 에디터에 붙여넣고 <strong>저장(Ctrl + S)</strong>합니다.
-                    </li>
-                    <li>
-                      우측 상단 <strong>[배포] ➔ [새 배포]</strong>를 누른 후:
-                      <ul className="list-disc list-inside pl-3 mt-1 text-slate-400">
-                        <li>유형: <strong>웹 앱 (Web App)</strong> 선택</li>
-                        <li>설명: <strong>워드 던전 통계 및 문장 탭 분석</strong></li>
-                        <li>다음 사용자 권한으로 실행: <strong>나(Me)</strong></li>
-                        <li>액세스 권한: <strong>모든 사용자(Anyone)</strong> 선택</li>
-                      </ul>
-                    </li>
-                    <li>
-                      생성된 <strong>웹 앱 URL</strong>을 복사하여 .env.local 또는 첫 번째 탭의 입력창에 붙여넣으면 완료!
-                    </li>
-                  </ol>
-                </div>
-
-                {/* Code actions bar */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs font-bold text-slate-300">
-                    Google Apps Script 소스 코드 (Code.gs)
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleDownloadScript}
-                      className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-[11px] font-bold text-slate-300 rounded-lg border border-slate-700 flex items-center gap-1 transition-all cursor-pointer"
-                    >
-                      <Download className="w-3 h-3" />
-                      <span>파일 다운로드</span>
-                    </button>
-                    <button
-                      onClick={handleCopyCode}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                        isCopied
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-emerald-700 hover:bg-emerald-600 text-white active:scale-95'
-                      }`}
-                    >
-                      {isCopied ? (
-                        <>
-                          <Check className="w-3 h-3 stroke-[3]" />
-                          <span>복사 완료!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          <span>코드 전체 복사</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Code Block */}
-                <div className="relative bg-slate-950 border border-slate-800 rounded-2xl p-3 overflow-hidden">
-                  <pre className="text-[10px] font-mono text-emerald-300/90 overflow-x-auto max-h-64 no-scrollbar leading-relaxed">
-                    {GOOGLE_APPS_SCRIPT_CODE}
-                  </pre>
-                </div>
-
-                <div className="text-[11px] text-slate-400 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
-                  <p>
-                    📌 <strong>시트 2개 자동 생성</strong>:
-                  </p>
-                  <ul className="list-disc list-inside pl-2 space-y-0.5 text-[10px] text-slate-300">
-                    <li>
-                      <code className="text-emerald-300">Stats</code> 시트: Timestamp, Play_count, Character_level, Gold_count, Word_count, Clear_count
-                    </li>
-                    <li>
-                      <code className="text-teal-300">Sentence_Taps</code> 시트: Timestamp, Sentence, Tap_frequency, Average, Word, Translation
-                    </li>
-                  </ul>
-                </div>
-              </>
             )}
           </div>
 

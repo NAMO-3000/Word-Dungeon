@@ -1,0 +1,6 @@
+{
+  "summary": "Google 스프레드시트 연동 UI 간소화 및 완전 자동 백그라운드 기록 전환 계획서.\n1. 구글 시트 기록 모달 내 Web App URL 입력 섹션 제거 (사용자 URL 노출 차단)\n2. Apps Script 코드 탭 및 다운로드/복사 UI 전면 제거 (스크립트 관리 차단)\n3. 결과 화면(클리어/게임오버)의 연동 버튼 및 상태 확인 제거, 백그라운드 자동 무간섭 데이터 동기화 구현",
+  "updatedAt": "2026-11-03T08:57:28.927128577Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

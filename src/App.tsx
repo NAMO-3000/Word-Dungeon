@@ -19,7 +19,8 @@ import { ResultScreen } from './components/ResultScreen';
 import { NotebookModal } from './components/NotebookModal';
 import { AchievementModal } from './components/AchievementModal';
 import { GoogleSheetModal } from './components/GoogleSheetModal';
-import { syncStatsToGoogleSheet, isAutoSyncEnabled } from './utils/googleSheetsSync';
+import { syncStatsToGoogleSheet } from './utils/googleSheetsSync';
+import { syncAllSentencesToGoogleSheet } from './utils/sentenceTapTracker';
 
 const STATS_STORAGE_KEY = 'word_dungeon_player_stats_v2';
 
@@ -275,10 +276,9 @@ export default function App() {
       };
 
       if (newHp <= 0) {
-        // Auto-sync stats to Google Sheet on Game Over
-        if (isAutoSyncEnabled()) {
-          syncStatsToGoogleSheet(updated).catch(() => {});
-        }
+        // Automatically sync stats and sentence taps to Google Sheet on Game Over (silent auto-sync)
+        syncStatsToGoogleSheet(updated).catch(() => {});
+        syncAllSentencesToGoogleSheet().catch(() => {});
 
         // Game Over
         setTimeout(() => {
@@ -365,10 +365,9 @@ export default function App() {
 
         checkAchievements(updated, 'clear');
 
-        // Auto-sync stats to Google Sheet on Dungeon Clear
-        if (isAutoSyncEnabled()) {
-          syncStatsToGoogleSheet(updated).catch(() => {});
-        }
+        // Automatically sync stats and sentence taps to Google Sheet on Dungeon Clear (silent auto-sync)
+        syncStatsToGoogleSheet(updated).catch(() => {});
+        syncAllSentencesToGoogleSheet().catch(() => {});
 
         return updated;
       });
@@ -546,7 +545,6 @@ export default function App() {
                 : () => handleStartGame(selectedTheme, difficulty)
             }
             onExit={handleExitToStart}
-            onOpenGoogleSheet={() => setIsGoogleSheetOpen(true)}
           />
         )}
 
